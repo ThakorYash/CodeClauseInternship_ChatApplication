@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 400px;
+            height: 600px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background-color: #6e8efb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            margin-right: 8px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            max-width: 80%;
+        }
+        
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin-bottom: 5px;
+            word-wrap: break-word;
+        }
+        
+        .message-sender {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 3px;
+        }
+        
+        .message-time {
+            font-size: 10px;
+            color: #999;
+            align-self: flex-end;
+            margin-top: 2px;
+        }
+        
+        .incoming {
+            align-items: flex-start;
+        }
+        
+        .incoming .message-content {
+            background-color: #e9e9eb;
+            color: #333;
+            border-top-left-radius: 4px;
+        }
+        
+        .outgoing {
+            align-items: flex-end;
+            margin-left: auto;
+        }
+        
+        .outgoing .message-content {
+            background-color: #6e8efb;
+            color: white;
+            border-top-right-radius: 4px;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+            font-size: 14px;
+        }
+        
+        .send-button {
+            background-color: #6e8efb;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+        
+        .send-button:hover {
+            background-color: #5a7de4;
+        }
+        
+        .send-button:active {
+            transform: scale(0.95);
+        }
+        
+        .typing-indicator {
+            padding: 5px 15px;
+            font-style: italic;
+            color: #999;
+            font-size: 14px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Real-Time Chat</h2>
+            <div class="status">
+                <div class="status-indicator"></div>
+                <span id="status-text">Online</span>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages will be added here dynamically -->
+        </div>
+        
+        <div class="typing-indicator" id="typing-indicator"></div>
+        
+        <div class="chat-input">
+            <input type="text" class="message-input" id="message-input" placeholder="Type a message...">
+            <button class="send-button" id="send-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            // Generate a random username for demo purposes
+            const username = "User" + Math.floor(Math.random() * 1000);
+            let isTyping = false;
+            let typingTimer;
+            
+            // Add sample messages to the chat
+            addMessage("Hello there! 👋", "Sarah", "incoming");
+            addMessage("Hi Sarah! How are you doing today?", "John", "incoming");
+            addMessage("Hey everyone! This real-time chat is looking great! 🚀", username, "outgoing");
+            
+            // Function to add a message to the chat
+            function addMessage(text, sender, type) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', type);
+                
+                const now = new Date();
+                const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                                  now.getMinutes().toString().padStart(2, '0');
+                
+                messageElement.innerHTML = `
+                    <div class="message-sender">${sender}</div>
+                    <div class="message-content">${text}</div>
+                    <div class="message-time">${timeString}</div>
+                `;
+                
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Function to simulate receiving a message
+            function simulateIncomingMessage() {
+                const messages = [
+                    "That's interesting! 🤔",
+                    "I agree with you completely!",
+                    "What do you think about the new design?",
+                    "Let's meet up sometime next week!",
+                    "I just finished the project we were discussing. 🎉"
+                ];
+                
+                const senders = ["Sarah", "John", "Emma", "Michael", "Lisa"];
+                
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                const randomSender = senders[Math.floor(Math.random() * senders.length)];
+                
+                // Don't show messages from our own username
+                if (randomSender !== username) {
+                    addMessage(randomMessage, randomSender, "incoming");
+                    
+                    // Simulate typing indicator
+                    showTypingIndicator(randomSender);
+                }
+            }
+            
+            // Function to show typing indicator
+            function showTypingIndicator(sender) {
+                typingIndicator.textContent = `${sender} is typing...`;
+                
+                // Clear previous timer if exists
+                if (typingTimer) clearTimeout(typingTimer);
+                
+                // Hide typing indicator after 2 seconds
+                typingTimer = setTimeout(() => {
+                    typingIndicator.textContent = '';
+                }, 2000);
+            }
+            
+            // Event listener for send button
+            sendButton.addEventListener('click', sendMessage);
+            
+            // Event listener for Enter key
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Event listeners for typing indicator
+            messageInput.addEventListener('input', function() {
+                if (!isTyping) {
+                    isTyping = true;
+                    statusText.textContent = "Typing...";
+                }
+                
+                // Clear previous timer if exists
+                if (typingTimer) clearTimeout(typingTimer);
+                
+                // Set timer to clear typing indicator after 1 second of inactivity
+                typingTimer = setTimeout(() => {
+                    isTyping = false;
+                    statusText.textContent = "Online";
+                }, 1000);
+            });
+            
+            // Function to send a message
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                
+                if (message) {
+                    addMessage(message, username, "outgoing");
+                    messageInput.value = '';
+                    
+                    // Simulate a response after a short delay
+                    setTimeout(simulateIncomingMessage, 1000 + Math.random() * 2000);
+                }
+            }
+            
+            // Simulate initial incoming messages
+            setTimeout(simulateIncomingMessage, 2000);
+            setTimeout(simulateIncomingMessage, 5000);
+        });
+    </script>
+</body>
+</html>
